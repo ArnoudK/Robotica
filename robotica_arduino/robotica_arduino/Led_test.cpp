@@ -84,8 +84,7 @@ constexpr auto MOTER_RIGHT_PWM = 5;
 constexpr auto MOTER_RIGHT_DIRECTION = 4;;
 //speed
 unsigned moter_right_speed = 0;
-bool leftForward = true;
-bool rightForward = true;
+bool goingForward = true;
 
 
 /*-----------------------------------
@@ -130,8 +129,6 @@ bool juncPoss[3] = {};
 
 // the setup function runs once when you press reset or power the board
 void setup() {
-	Serial.begin(9600);
-
 	pinMode(MOTER_LEFT_PWM, OUTPUT);
 	pinMode(MOTER_LEFT_DIRECTION, OUTPUT);
 	pinMode(MOTER_RIGHT_PWM, OUTPUT);
@@ -162,8 +159,7 @@ void setup() {
 
 // the loop function runs over and over again until power down or reset
 void loop() {
-	leftForward = true;
-	rightForward = true;
+
 	/*-------------UPDATE SENSORS------------*/
 	  //updateUltraSoundDistance();
 	//---UPDATING THE SENSOR DELAYS FOR ~15 ms
@@ -183,7 +179,7 @@ void loop() {
 	innerright = !digitalRead(IR_INNER_RIGHT);
 	middle = !digitalRead(IR_MIDDLE);
 	innerleft = !digitalRead(IR_INNER_LEFT);
-	outerleft = !digitalRead(IR_OUTER_LEFT);
+	outerleft = !digitalRead(IR_OUTER_RIGHT);
 
 
 
@@ -203,19 +199,18 @@ void loop() {
 		juncPoss[2] = 0;
 
 		if (outerright || outerleft) {
-			if (millis() - timeSinceLastStateChange > 600) {
-				timeSinceLastStateChange = millis();
-				state = CHECKJUNCTION;
-			}
+
+			timeSinceLastStateChange = millis();
+			state = CHECKJUNCTION;
 		}
-		else if (!(middle || innerleft || innerright)) {
+		else if (!(middle && innerleft && innerright)) {
 			timeSinceLastStateChange = millis();
 			state = TURNAROUND;
 		}
 		else {
 			//Try to straighten;
 			if (innerleft) {
-				moter_left_speed = 40;
+				moter_right_speed = 40;
 			}
 			else if (innerleft) {
 				moter_right_speed = 40;
@@ -223,7 +218,7 @@ void loop() {
 		}
 		break;
 	case LEFT:
-		if (!outerright && !outerleft && middle || millis() - timeSinceLastStateChange < 400) {
+		if (!outerright && !outerleft) {
 			moter_right_speed = 60;
 			moter_left_speed = 0;
 		}
@@ -233,7 +228,7 @@ void loop() {
 		}
 		break;
 	case RIGHT:
-		if (!outerright && !outerleft || millis() - timeSinceLastStateChange < 400) {
+		if (!outerright && outerleft) {
 			moter_left_speed = 60;
 			moter_right_speed = 0;
 		}
@@ -244,7 +239,7 @@ void loop() {
 		break;
 	case CHECKJUNCTION:
 		// first 100 mill check if we can go left and or right and keep driving forward
-		if (millis() - timeSinceLastStateChange < 400) {
+		if (millis() - timeSinceLastStateChange < 300) {
 			moter_left_speed = 60;
 			moter_right_speed = 60;
 			/*Check if we can go left and or right*/
@@ -259,18 +254,16 @@ void loop() {
 		}
 		break;
 	case BACKWARD:
-		if (millis() - timeSinceLastStateChange < 800) {
-			leftForward = false;
-			rightForward = false;
-			moter_left_speed = 70;
-			moter_right_speed = 70;
+		if (millis() - timeSinceLastStateChange < 120) {
+			goingForward = false;
+			moter_left_speed = 60;
+			moter_right_speed = 60;
 		}
 		else {
-			if (juncPoss[1] && juncPoss[0] && juncPoss[2] && innerleft && innerright && outerright && outerleft && middle) {
+			if ((juncPoss[0] && juncPoss[1] && juncPoss[2])) {
 				state = FINISHED;
 			}
-			else if (juncPoss[0]) {
-				timeSinceLastStateChange = millis();
+			if (juncPoss[0]) {
 				state = LEFT;
 			}
 			else if (juncPoss[1]) {
@@ -278,22 +271,21 @@ void loop() {
 			}
 			else {
 				state = RIGHT;
-				timeSinceLastStateChange = millis();
 			}
 		}
 		break;
 	case FINISHED:
-		analogWrite(MOTER_LEFT_PWM, 0);   //PWM Speed Control
-		analogWrite(MOTER_RIGHT_PWM, 0);   //PWM Speed Control
+		moter_left_speed = 0;
+		moter_right_speed = 0;
 		return;
 		//@TODO LED stuff
 		break;
 	case TURNAROUND:
 		moter_right_speed = 60;
-		moter_left_speed = 60;
-		rightForward = false;
-		if (millis() - timeSinceLastStateChange > 300) {
+		moter_left_speed = 0;
+		if (millis() - timeSinceLastStateChange > 100) {
 			if (middle) {
+				encouter_count++;
 				state = FORWARD;
 			}
 		}
@@ -304,6 +296,8 @@ void loop() {
 
 	/*----------UPDATE MOTER----------*/
 
+	moter_left_speed = 60;
+	moter_right_speed = 60;
 
 
 	if (distance < 20) {
@@ -311,26 +305,25 @@ void loop() {
 		moter_right_speed = 0;
 	}
 	//set moter power;
-	digitalWrite(MOTER_LEFT_DIRECTION, !leftForward);
-	digitalWrite(MOTER_RIGHT_DIRECTION, rightForward);
-	analogWrite(MOTER_LEFT_PWM, moter_left_speed);   //PWM Speed Control
-	analogWrite(MOTER_RIGHT_PWM, moter_right_speed);   //PWM Speed Control
+	//digitalWrite(MOTER_LEFT_DIRECTION, !goingForward);
+	//digitalWrite(MOTER_RIGHT_DIRECTION, goingForward);
+	//analogWrite(MOTER_LEFT_PWM, moter_left_speed);   //PWM Speed Control
+	//analogWrite(MOTER_RIGHT_PWM, moter_right_speed);   //PWM Speed Control
 
 
-	Serial.println(state);
-	Serial.print(distance);
-	Serial.println("cm");
 
-	//for (int i = 0; i < 14; i++) {
-	//	long timer = millis();
 
-	//	while (millis() - timer < 2000) {
-	//		display(0, 1, i);
-	//		delay(7);
-	//		display(1, 0, 13 - i);
-	//		delay(7);
-	//	}
-	//}
+
+	for (int i = 0; i < 14; i++) {
+		long timer = millis();
+
+		while (millis() - timer < 2000) {
+			display(0, 1, i);
+			delay(7);
+			display(1, 0, 13 - i);
+			delay(7);
+		}
+	}
 
 
 }
