@@ -127,6 +127,13 @@ byte state;
 bool juncPoss[3] = {};
 
 
+/*-----------------
+	MAGIC VALUES
+-------------------*/
+constexpr auto DELAYBACKWARDS = 300;
+constexpr auto DELAYFORWARDS = 400;
+
+
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -244,7 +251,7 @@ void loop() {
 		break;
 	case CHECKJUNCTION:
 		// first 100 mill check if we can go left and or right and keep driving forward
-		if (millis() - timeSinceLastStateChange < 400) {
+		if (millis() - timeSinceLastStateChange < DELAYFORWARDS) {
 			moter_left_speed = 60;
 			moter_right_speed = 60;
 			/*Check if we can go left and or right*/
@@ -259,14 +266,16 @@ void loop() {
 		}
 		break;
 	case BACKWARD:
-		if (millis() - timeSinceLastStateChange < 800) {
+		if (millis() - timeSinceLastStateChange < (DELAYFORWARDS + DELAYBACKWARDS)
+			&& outerleft == juncPoss[0] && outerright == juncPoss[2] && middle) {
 			leftForward = false;
 			rightForward = false;
 			moter_left_speed = 70;
 			moter_right_speed = 70;
 		}
 		else {
-			if (juncPoss[1] && juncPoss[0] && juncPoss[2] && innerleft && innerright && outerright && outerleft && middle) {
+			if (juncPoss[1] && juncPoss[0] && juncPoss[2]
+				&& innerleft && innerright && outerright && outerleft && middle) {
 				state = FINISHED;
 			}
 			else if (juncPoss[0]) {
