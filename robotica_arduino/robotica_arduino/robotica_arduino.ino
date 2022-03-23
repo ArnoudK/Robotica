@@ -8,7 +8,7 @@
 
 
 /*  -----------------------------
-	STATES
+  STATES
 -----------------------------*/
 
 enum stepAndState : byte {
@@ -22,8 +22,12 @@ enum stepAndState : byte {
 	FINISHED = 7
 };
 
+
+byte path[20] = { 1,1,2,2,3,3,0 };
+
+
 /*----LETTERS FOR SGDP--- */
-const byte digitData[14][7]{
+const byte digitData[15][7]{
   {0,1,1,1,1,1,1},
   {0,0,0,0,1,1,0},
   {1,0,1,1,0,1,1},
@@ -41,9 +45,9 @@ const byte digitData[14][7]{
   // LETTER F
   {1,1,1,0,0,0,1},
   // LETTER I
-  {0,1,1,0,0,0,0}
-
-
+  {0,1,1,0,0,0,0},
+  //NIKS
+  {0,0,0,0,0,0,0}
 };
 
 
@@ -115,7 +119,7 @@ constexpr auto LEDMULTIPLEX2 = 1;
 
 
 /*----------------------
-	OTHER STUFF
+  OTHER STUFF
 ------------------------*/
 
 // number of encounters passed
@@ -128,16 +132,17 @@ bool juncPoss[3] = {};
 
 
 /*-----------------
-	MAGIC VALUES
+  MAGIC VALUES
 -------------------*/
-constexpr auto DELAYBACKWARDS = 300;
-constexpr auto DELAYFORWARDS = 400;
-
-
+constexpr auto DELAYBACKWARDS = 350;
+constexpr auto DELAYFORWARDS = 250;
+constexpr int DEFSPEED = 240;
+constexpr int FASTERSPEED = 255;
+constexpr int LOWSPEED = 200;
+constexpr auto MINTURNTIME = 300;
 
 // the setup function runs once when you press reset or power the board
 void setup() {
-	Serial.begin(9600);
 
 	pinMode(MOTER_LEFT_PWM, OUTPUT);
 	pinMode(MOTER_LEFT_DIRECTION, OUTPUT);
@@ -164,7 +169,7 @@ void setup() {
 	pinMode(LEDMULTIPLEX2, OUTPUT);
 
 	timeSinceLastStateChange = millis();
-	state = FORWARD;
+	state = FORWARD; delay(1000);
 }
 
 // the loop function runs over and over again until power down or reset
@@ -203,17 +208,18 @@ void loop() {
 	switch (state)
 	{
 	case FORWARD:
-		moter_left_speed = 60;
-		moter_right_speed = 60;
+		moter_left_speed = DEFSPEED;
+		moter_right_speed = DEFSPEED;
 		juncPoss[0] = 0;
 		juncPoss[1] = 0;
 		juncPoss[2] = 0;
 
 		if (outerright || outerleft) {
-			if (millis() - timeSinceLastStateChange > 600) {
-				timeSinceLastStateChange = millis();
-				state = CHECKJUNCTION;
-			}
+			timeSinceLastStateChange = millis();
+			juncPoss[0] = outerleft;
+			juncPoss[2] = outerright;
+			state = CHECKJUNCTION;
+
 		}
 		else if (!(middle || innerleft || innerright)) {
 			timeSinceLastStateChange = millis();
@@ -222,17 +228,18 @@ void loop() {
 		else {
 			//Try to straighten;
 			if (innerleft) {
-				moter_left_speed = 40;
+				moter_left_speed = LOWSPEED;
 			}
-			else if (innerleft) {
-				moter_right_speed = 40;
+			else if (innerright) {
+				moter_right_speed = LOWSPEED;
 			}
 		}
 		break;
 	case LEFT:
-		if (!outerright && !outerleft && middle || millis() - timeSinceLastStateChange < 400) {
-			moter_right_speed = 60;
-			moter_left_speed = 0;
+		if ((!outerright && !outerleft && middle) || millis() - timeSinceLastStateChange < MINTURNTIME) {
+			moter_right_speed = DEFSPEED;
+			moter_left_speed = DEFSPEED;
+			leftForward = false;
 		}
 		else {
 			state = FORWARD;
@@ -240,9 +247,10 @@ void loop() {
 		}
 		break;
 	case RIGHT:
-		if (!outerright && !outerleft || millis() - timeSinceLastStateChange < 400) {
-			moter_left_speed = 60;
-			moter_right_speed = 0;
+		if ((!outerright && !outerleft && middle) || millis() - timeSinceLastStateChange < MINTURNTIME) {
+			moter_left_speed = DEFSPEED;
+			moter_right_speed = DEFSPEED;
+			rightForward = false;
 		}
 		else {
 			state = FORWARD;
@@ -252,8 +260,8 @@ void loop() {
 	case CHECKJUNCTION:
 		// first 100 mill check if we can go left and or right and keep driving forward
 		if (millis() - timeSinceLastStateChange < DELAYFORWARDS) {
-			moter_left_speed = 60;
-			moter_right_speed = 60;
+			moter_left_speed = DEFSPEED;
+			moter_right_speed = DEFSPEED;
 			/*Check if we can go left and or right*/
 			juncPoss[0] = juncPoss[0] || outerleft;
 			juncPoss[2] = juncPoss[2] || outerright;
@@ -270,13 +278,14 @@ void loop() {
 			&& outerleft == juncPoss[0] && outerright == juncPoss[2] && middle) {
 			leftForward = false;
 			rightForward = false;
-			moter_left_speed = 70;
-			moter_right_speed = 70;
+			moter_left_speed = FASTERSPEED;
+			moter_right_speed = FASTERSPEED;
 		}
 		else {
 			if (juncPoss[1] && juncPoss[0] && juncPoss[2]
 				&& innerleft && innerright && outerright && outerleft && middle) {
-				state = FINISHED;
+				finish();
+				return;
 			}
 			else if (juncPoss[0]) {
 				timeSinceLastStateChange = millis();
@@ -292,14 +301,12 @@ void loop() {
 		}
 		break;
 	case FINISHED:
-		analogWrite(MOTER_LEFT_PWM, 0);   //PWM Speed Control
-		analogWrite(MOTER_RIGHT_PWM, 0);   //PWM Speed Control
+
 		return;
 		//@TODO LED stuff
-		break;
 	case TURNAROUND:
-		moter_right_speed = 60;
-		moter_left_speed = 60;
+		moter_right_speed = DEFSPEED;
+		moter_left_speed = DEFSPEED;
 		rightForward = false;
 		if (millis() - timeSinceLastStateChange > 300) {
 			if (middle) {
@@ -315,7 +322,7 @@ void loop() {
 
 
 
-	if (distance < 20) {
+	if (distance < 10) {
 		moter_left_speed = 0;
 		moter_right_speed = 0;
 	}
@@ -326,23 +333,28 @@ void loop() {
 	analogWrite(MOTER_RIGHT_PWM, moter_right_speed);   //PWM Speed Control
 
 
-	Serial.println(state);
-	Serial.print(distance);
-	Serial.println("cm");
 
 	//for (int i = 0; i < 14; i++) {
-	//	long timer = millis();
+	//  long timer = millis();
 
-	//	while (millis() - timer < 2000) {
-	//		display(0, 1, i);
-	//		delay(7);
-	//		display(1, 0, 13 - i);
-	//		delay(7);
-	//	}
+	//  while (millis() - timer < 2000) {
+	//    display(0, 1, i);
+	//    delay(7);
+	//    display(1, 0, 13 - i);
+	//    delay(7);
+	//  }
 	//}
 
 
 }
+
+void finish() {
+	analogWrite(MOTER_LEFT_PWM, 0);   //PWM Speed Control
+	analogWrite(MOTER_RIGHT_PWM, 0);   //PWM Speed Control
+	showPath();
+	state = FINISHED;
+}
+
 
 
 void display(int toDisplay, int displayOff, int num) {
@@ -355,4 +367,48 @@ void display(int toDisplay, int displayOff, int num) {
 	digitalWrite(LED5, digitData[num][4]);
 	digitalWrite(LED6, digitData[num][5]);
 	digitalWrite(LED7, digitData[num][6]);
+}
+
+void showPath() {
+	//count down from 10
+	for (int i = 9; i >= 0; i--) {
+		display(0, 1, i);
+		delay(1000);
+	}
+	//show path;
+	int count = 0;
+	while (path[count] != 0) {
+		byte toDisplay;
+		switch (path[count]) {
+		case LEFT:
+			toDisplay = 10;
+			break;
+		case RIGHT:
+			toDisplay = 11;
+			break;
+		case FORWARD:
+			toDisplay = 12;
+			break;
+
+		default:
+			toDisplay = 0;
+			break;
+		}
+
+		// display(0, 1, toDisplay);
+		// delay(1000);
+		// display(0, 1, 14);
+		long   timer = millis();
+		while (millis() - timer < 1000) {
+			display(0, 1, toDisplay);
+			delay(7);
+			display(1, 0, (count + 1) % 10);
+			delay(7);
+		}
+		display(1, 0, 14);
+		delay(500);
+		count++;
+	}
+
+
 }
