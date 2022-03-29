@@ -36,7 +36,7 @@ enum stepAndState : byte
 
 byte path[36] = {};
 
-/*----LETTERS FOR SGDP--- */+++++++++++++++++++
+/*----LETTERS FOR SGDP--- */
 const byte digitData[15][7]{
 	{0, 1, 1, 1, 1, 1, 1},
 	{0, 0, 0, 0, 1, 1, 0},
