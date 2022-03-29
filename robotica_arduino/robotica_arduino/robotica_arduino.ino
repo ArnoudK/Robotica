@@ -285,7 +285,6 @@ void loop()
 		else if (!(middle || innerleft || innerright) || distance < 10 /*&& millis() > timeSinceLastStateChange + 500*/)
 		{
 			timeSinceLastStateChange = millis();
-			saveTurnAround();
 			state = TURNAROUND;
 		}
 		else
@@ -395,6 +394,8 @@ void loop()
 		rightForward = false;
 		if (middle && millis() - timeSinceLastStateChange > MINTURNTIME)
 		{
+			saveTurnAround();
+
 			state = FORWARD;
 		}
 		break;
@@ -415,7 +416,6 @@ void saveTurnAround() {
 	encouter_count--;
 	path[encouter_count] = UNKOWN;
 	redirectedLastTime = true;
-
 }
 
 
