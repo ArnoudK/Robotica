@@ -10,9 +10,9 @@
 void objectDetectie();
 Ticker ultrasoonCheckup(objectDetectie, 100);
 void lijnDetectie();
-Ticker updateRoadDetection(lijnDetectie, 100);
+Ticker updateRoadDetection(lijnDetectie, 50);
 void setMotorPower();
-Ticker motorPowerUpdate(setMotorPower, 100);
+Ticker motorPowerUpdate(setMotorPower, 30);
 void displayLEDS();
 Ticker updateDisplayLEDS(displayLEDS, 7);
 // void setRobotStop();
@@ -38,26 +38,26 @@ byte path[36] = {};
 
 /*----LETTERS FOR SGDP--- */
 const byte digitData[15][7]{
-	{0, 1, 1, 1, 1, 1, 1},
-	{0, 0, 0, 0, 1, 1, 0},
-	{1, 0, 1, 1, 0, 1, 1},
-	{1, 0, 0, 1, 1, 1, 1},
-	{1, 1, 0, 0, 1, 1, 0},
-	{1, 1, 0, 1, 1, 0, 1},
-	{1, 1, 1, 1, 1, 0, 1},
-	{0, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 0, 1, 1, 1, 1},
-	// LETTER L
-	{0, 1, 1, 1, 0, 0, 0},
-	// LETTER R
-	{1, 1, 1, 0, 1, 1, 1},
-	// LETTER F
-	{1, 1, 1, 0, 0, 0, 1},
-	// LETTER I
-	{0, 1, 1, 0, 0, 0, 0},
-	// NIKS
-	{0, 0, 0, 0, 0, 0, 0} };
+  {0, 1, 1, 1, 1, 1, 1},
+  {0, 0, 0, 0, 1, 1, 0},
+  {1, 0, 1, 1, 0, 1, 1},
+  {1, 0, 0, 1, 1, 1, 1},
+  {1, 1, 0, 0, 1, 1, 0},
+  {1, 1, 0, 1, 1, 0, 1},
+  {1, 1, 1, 1, 1, 0, 1},
+  {0, 0, 0, 0, 1, 1, 1},
+  {1, 1, 1, 1, 1, 1, 1},
+  {1, 1, 0, 1, 1, 1, 1},
+  // LETTER L
+  {0, 1, 1, 1, 0, 0, 0},
+  // LETTER R
+  {1, 1, 1, 0, 1, 1, 1},
+  // LETTER F
+  {1, 1, 1, 0, 0, 0, 1},
+  // LETTER I
+  {0, 1, 1, 0, 0, 0, 0},
+  // NIKS
+  {0, 0, 0, 0, 0, 0, 0} };
 
 /*  -----------------------------
   INFRARED SENSOR
@@ -141,10 +141,10 @@ bool juncPoss[3] = {};
 -------------------*/
 constexpr auto DELAYBACKWARDS = /*350*/ -300;
 constexpr auto DELAYFORWARDS = /*250*/ 400;
-constexpr int DEFSPEED = 240;	 // 66; //240
+constexpr int DEFSPEED = 240;  // 66; //240
 constexpr int FASTERSPEED = 255; // 72; //255
-constexpr int LOWSPEED = 100;	 // 100
-constexpr auto MINTURNTIME = 630;
+constexpr int LOWSPEED = 100;  // 100
+constexpr auto MINTURNTIME = 660;
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -198,7 +198,7 @@ void objectDetectie()
 	//
 	duration = pulseIn(ECHO_PIN, HIGH);
 	// distance = duration * 0.034 / 2; // Speed of sound wave divided by 2 (go and back)
-	distance = duration * 0.017;
+	distance = duration * 0.017f;
 
 }
 
@@ -218,8 +218,8 @@ void setMotorPower()
 	// set moter power;
 	digitalWrite(MOTER_LEFT_DIRECTION, !leftForward);
 	digitalWrite(MOTER_RIGHT_DIRECTION, rightForward);
-	analogWrite(MOTER_LEFT_PWM, moter_left_speed);			 // PWM Speed Control
-	analogWrite(MOTER_RIGHT_PWM, moter_right_speed * 0.97f); // PWM Speed Control
+	analogWrite(MOTER_LEFT_PWM, moter_left_speed);       // PWM Speed Control
+	analogWrite(MOTER_RIGHT_PWM, moter_right_speed * 0.96f); // PWM Speed Control
 }
 
 void displayLEDS()
@@ -275,7 +275,7 @@ void loop()
 		juncPoss[1] = 0;
 		juncPoss[2] = 0;
 
-		if (((outerright && innerright) || (outerleft && innerleft)) && millis() - timeSinceLastStateChange < 100)
+		if (((outerright && innerright) || (outerleft && innerleft)) && millis() - timeSinceLastStateChange < 400)
 		{
 			timeSinceLastStateChange = millis();
 			juncPoss[0] = outerleft;
@@ -303,7 +303,7 @@ void loop()
 		}
 		break;
 	case LEFT:
-		if ((!outerright && !outerleft && middle) || millis() - timeSinceLastStateChange < MINTURNTIME)
+		if (((middle) || (innerleft != outerleft)) || millis() - timeSinceLastStateChange < MINTURNTIME)
 		{
 			moter_right_speed = FASTERSPEED;
 			moter_left_speed = FASTERSPEED;
@@ -315,7 +315,7 @@ void loop()
 		}
 		break;
 	case RIGHT:
-		if ((!outerright && !outerleft && middle) || millis() - timeSinceLastStateChange < MINTURNTIME)
+		if (((middle) || (innerleft != outerleft)) || millis() - timeSinceLastStateChange < MINTURNTIME)
 		{
 			moter_left_speed = FASTERSPEED;
 			moter_right_speed = FASTERSPEED;
@@ -412,10 +412,11 @@ void loop()
 }
 
 
-void saveTurnAround() {
+char saveTurnAround() {
 	encouter_count--;
 	path[encouter_count] = UNKOWN;
 	redirectedLastTime = true;
+	return UNKOWN;
 }
 
 
@@ -424,29 +425,38 @@ void saveTurnAround() {
 void save_route(byte direction)
 {
 	if (redirectedLastTime) {
+		if (juncPoss[0] + juncPoss[1] + juncPoss[2] == 1) {
+			encouter_count--;
+			saveTurnAround();
+			return;
+		}
 		switch (direction)
 		{
 		case LEFT:
-			direction = FORWARD;
+			direction = juncPoss[0] ? FORWARD : juncPoss[1] ? RIGHT : saveTurnAround();
 			break;
 		case FORWARD:
-			direction = RIGHT;
+			direction = juncPoss[1] ? RIGHT : saveTurnAround();
 		case RIGHT:
+			//IF WE TURN AROUND WE NEED TO DO MORE STUFF
+			saveTurnAround();
+			return;
 			direction = TURNAROUND;
 		default:
 			break;
 		}
 	}
+
 	timeSinceLastStateChange = millis();
 	lastTurn = direction;
 	path[encouter_count] = direction;
 	encouter_count++;
 	redirectedLastTime = false;
-}
 
+}
 void finish()
 {
-	analogWrite(MOTER_LEFT_PWM, 0);	 // PWM Speed Control
+	analogWrite(MOTER_LEFT_PWM, 0);  // PWM Speed Control
 	analogWrite(MOTER_RIGHT_PWM, 0); // PWM Speed Control
 	updateDisplayLEDS.stop();
 	showPath();
