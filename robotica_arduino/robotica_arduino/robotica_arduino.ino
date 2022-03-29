@@ -57,7 +57,7 @@ const byte digitData[15][7]{
 	// LETTER I
 	{0, 1, 1, 0, 0, 0, 0},
 	// NIKS
-	{0, 0, 0, 0, 0, 0, 0}};
+	{0, 0, 0, 0, 0, 0, 0} };
 
 /*  -----------------------------
   INFRARED SENSOR
@@ -74,7 +74,7 @@ bool outerleft, innerleft, middle, innerright, outerright;
 /*   ----------------
 *   MOTER LEFT
   _________________*/
-// PWM moter left E2
+  // PWM moter left E2
 constexpr auto MOTER_LEFT_PWM = 6;
 // moter direction (on forward) M2
 constexpr auto MOTER_LEFT_DIRECTION = 7;
@@ -86,7 +86,7 @@ unsigned moter_left_speed = 0;
 /*  -----------------------------
 *   MOTER RIGHT
   -----------------------------*/
-// E1
+  // E1
 constexpr auto MOTER_RIGHT_PWM = 5;
 // m1
 constexpr auto MOTER_RIGHT_DIRECTION = 4;
@@ -124,6 +124,12 @@ constexpr auto LEDMULTIPLEX2 = 1;
 // number of encounters passed
 int encouter_count = 0;
 long timeSinceLastStateChange;
+
+byte lastTurn;
+bool redirectedLastTime = false;
+
+
+
 byte state;
 byte ledTimer = 0;
 
@@ -279,6 +285,7 @@ void loop()
 		else if (!(middle || innerleft || innerright) || distance < 10 /*&& millis() > timeSinceLastStateChange + 500*/)
 		{
 			timeSinceLastStateChange = millis();
+			saveTurnAround();
 			state = TURNAROUND;
 		}
 		else
@@ -339,7 +346,7 @@ void loop()
 		}
 		break;
 	case BACKWARD:
-		if (millis() - timeSinceLastStateChange < (DELAYFORWARDS + DELAYBACKWARDS)  && outerleft == juncPoss[0] && outerright == juncPoss[2] && middle)
+		if (millis() - timeSinceLastStateChange < (DELAYFORWARDS + DELAYBACKWARDS) && outerleft == juncPoss[0] && outerright == juncPoss[2] && middle)
 		{
 			leftForward = false;
 			rightForward = false;
@@ -403,11 +410,38 @@ void loop()
 	// the loop function runs over and over again until power down or reset
 }
 
+
+void saveTurnAround() {
+	encouter_count--;
+	path[encouter_count] = UNKOWN;
+	redirectedLastTime = true;
+
+}
+
+
+
+
 void save_route(byte direction)
 {
+	if (redirectedLastTime) {
+		switch (direction)
+		{
+		case LEFT:
+			direction = FORWARD;
+			break;
+		case FORWARD:
+			direction = RIGHT;
+		case RIGHT:
+			direction = TURNAROUND;
+		default:
+			break;
+		}
+	}
 	timeSinceLastStateChange = millis();
+	lastTurn = direction;
 	path[encouter_count] = direction;
 	encouter_count++;
+	redirectedLastTime = false;
 }
 
 void finish()
