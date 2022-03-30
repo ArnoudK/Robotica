@@ -34,7 +34,7 @@ enum stepAndState : byte
 	FINISHED = 7
 };
 
-byte path[36] = {};
+byte path[50] = {};
 
 /*----LETTERS FOR SGDP--- */
 const byte digitData[15][7]{
@@ -231,24 +231,9 @@ void displayLEDS()
 	}
 	else
 	{
-		int toDisplay = 0;
-		switch (path[encouter_count - 1])
-		{
-		case LEFT:
-			toDisplay = 10;
-			break;
-		case RIGHT:
-			toDisplay = 11;
-			break;
-		case FORWARD:
-			toDisplay = 12;
-			break;
-
-		default:
-			toDisplay = 0;
-			break;
-		}
+		int toDisplay = STATEtoDisplay(path[encouter_count - 1]);
 		display(1, 0, toDisplay);
+
 	}
 }
 
@@ -282,7 +267,7 @@ void loop()
 			juncPoss[2] = outerright;
 			state = CHECKJUNCTION;
 		}
-		else if (!(middle || innerleft || innerright) || distance < 10 /*&& millis() > timeSinceLastStateChange + 500*/)
+		else if (!(middle || innerleft || innerright) || distance < 10)
 		{
 			timeSinceLastStateChange = millis();
 			state = TURNAROUND;
@@ -303,7 +288,7 @@ void loop()
 		}
 		break;
 	case LEFT:
-		if (((middle) || (innerleft != outerleft)) || millis() - timeSinceLastStateChange < MINTURNTIME)
+		if (((!middle) || (innerleft != outerleft)) || millis() - timeSinceLastStateChange < MINTURNTIME)
 		{
 			moter_right_speed = FASTERSPEED;
 			moter_left_speed = FASTERSPEED;
@@ -315,7 +300,7 @@ void loop()
 		}
 		break;
 	case RIGHT:
-		if (((middle) || (innerleft != outerleft)) || millis() - timeSinceLastStateChange < MINTURNTIME)
+		if (((!middle) || (innerleft != outerleft)) || millis() - timeSinceLastStateChange < MINTURNTIME)
 		{
 			moter_left_speed = FASTERSPEED;
 			moter_right_speed = FASTERSPEED;
@@ -389,6 +374,7 @@ void loop()
 		return;
 		//@TODO LED stuff
 	case TURNAROUND:
+
 		moter_right_speed = FASTERSPEED;
 		moter_left_speed = FASTERSPEED;
 		rightForward = false;
@@ -412,54 +398,139 @@ void loop()
 }
 
 
-char saveTurnAround() {
-	encouter_count--;
-	path[encouter_count] = UNKOWN;
-	redirectedLastTime = true;
-	return UNKOWN;
+//char saveTurnAround() {
+//	encouter_count--;
+//	path[encouter_count] = UNKOWN;
+//	redirectedLastTime = true;
+//	return UNKOWN;
+//}
+
+void saveTurnAround() {
+	save_route(TURNAROUND);
 }
 
-
-
-
-void save_route(byte direction)
+int STATEtoDisplay(byte state)
 {
-	if (redirectedLastTime) {
-		if (juncPoss[0] + juncPoss[1] + juncPoss[2] == 1) {
-			encouter_count--;
-			saveTurnAround();
-			return;
-		}
-		switch (direction)
-		{
-		case LEFT:
-			direction = juncPoss[0] ? FORWARD : juncPoss[1] ? RIGHT : saveTurnAround();
-			break;
-		case FORWARD:
-			direction = juncPoss[1] ? RIGHT : saveTurnAround();
-		case RIGHT:
-			//IF WE TURN AROUND WE NEED TO DO MORE STUFF
-			saveTurnAround();
-			return;
-			direction = TURNAROUND;
-		default:
-			break;
-		}
-	}
+	switch (state)
+	{
+	case LEFT:
+		return 10;
+		break;
+	case RIGHT:
+		return 11;
+		break;
+	case FORWARD:
+		return 12;
+		break;
 
-	timeSinceLastStateChange = millis();
-	lastTurn = direction;
+	default:
+		return 8;
+		break;
+	}
+}
+
+void save_route(byte direction) {
 	path[encouter_count] = direction;
 	encouter_count++;
-	redirectedLastTime = false;
-
 }
+
+void optimizeRoute() {
+	for (int i = 1; i < 50 && path[i] != UNKOWN; i++) {
+		if (path[i] == TURNAROUND) {
+			byte before = path[i - 1];
+			byte after = path[i + 1];
+			byte result;
+			switch (before) {
+			case LEFT:
+				if (after == LEFT) {
+					result = FORWARD;
+				}
+				else if (after == FORWARD) {
+					result = RIGHT;
+				}
+				else if (after == RIGHT) {
+					result = TURNAROUND;
+				}
+				break;
+			case FORWARD:
+				if (after == LEFT) {
+					result = RIGHT;
+				}
+				else if (after == FORWARD) {
+					result = TURNAROUND;
+				}
+				break;
+			case RIGHT:
+				result = TURNAROUND;
+				break;
+			default:
+				while (true)(display(1, 0, 3));
+				break;
+			}
+			path[i - 1] = result;
+			for (int j = i; j < 47; j++) {
+				path[j] = path[j + 3];
+			}
+			i = 1;
+		}
+	}
+}
+
+
+//
+//void save_route(byte direction)
+//{
+//	if (redirectedLastTime) {
+//		if (juncPoss[0] + juncPoss[1] + juncPoss[2] == 1) {
+//			//op letten
+//			//encouter_count--;
+//			saveTurnAround();
+//			return;
+//		}
+//		switch (path[encouter_count])
+//		{
+//		case LEFT:
+//			direction = direction == LEFT ? FORWARD : direction == FORWARD ? RIGHT : UNKOWN;
+//			break;
+//		case FORWARD:
+//			direction = direction == LEFT ? RIGHT : direction == FORWARD ? UNKOWN : LEFT;
+//
+//		case RIGHT:
+//			//IF WE TURN AROUND WE NEED TO DO MORE STUFF
+//			direction == UNKOWN;
+//			//saveTurnAround();
+//			return;
+//		default:
+//			direction = path[encouter_count - 1];
+//			break;
+//		}
+//	}
+//	if (direction == UNKOWN) {
+//		return;
+//	}
+//	timeSinceLastStateChange = millis();
+//	lastTurn = direction;
+//	path[encouter_count] = direction;
+//
+//	redirectedLastTime = false;
+//	encouter_count++;
+//
+//
+//}
+
+
+
+
+
+
 void finish()
 {
 	analogWrite(MOTER_LEFT_PWM, 0);  // PWM Speed Control
 	analogWrite(MOTER_RIGHT_PWM, 0); // PWM Speed Control
+	//save_route(FINISHED);
 	updateDisplayLEDS.stop();
 	showPath();
+
 	state = FINISHED;
 }
 
@@ -478,6 +549,7 @@ void display(int toDisplay, int displayOff, int num)
 
 void showPath()
 {
+	optimizeRoute();
 	// count down from 10
 	for (int i = 9; i >= 0; i--)
 	{
@@ -485,26 +557,10 @@ void showPath()
 		delay(1000);
 	}
 	// show path;
-	int count = 0;
-	while (path[count] != 0)
+	//int count = 0;
+	for (int count = 0; count < 50 && path[count] != UNKOWN; count++)
 	{
-		byte toDisplay;
-		switch (path[count])
-		{
-		case LEFT:
-			toDisplay = 10;
-			break;
-		case RIGHT:
-			toDisplay = 11;
-			break;
-		case FORWARD:
-			toDisplay = 12;
-			break;
-
-		default:
-			toDisplay = 0;
-			break;
-		}
+		byte toDisplay = STATEtoDisplay(path[count]);
 
 		// display(0, 1, toDisplay);
 		// delay(1000);
@@ -519,6 +575,13 @@ void showPath()
 		}
 		display(1, 0, 14);
 		delay(500);
-		count++;
+	}
+	while (true) {
+		display(1, 0, 12);
+		delay(7);
+		display(0, 1, 13);
+		delay(7);
+
+
 	}
 }
