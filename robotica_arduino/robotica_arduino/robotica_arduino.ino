@@ -439,7 +439,7 @@ void optimizeRoute() {
 		if (path[i] == TURNAROUND) {
 			byte before = path[i - 1];
 			byte after = path[i + 1];
-			byte result;
+			byte result =0;
 			switch (before) {
 			case LEFT:
 				if (after == LEFT) {
@@ -468,10 +468,11 @@ void optimizeRoute() {
 				break;
 			}
 			path[i - 1] = result;
-			for (int j = i; j < 47; j++) {
-				path[j] = path[j + 3];
+			for (int j = i; j < 48; j++) {
+				path[j] = path[j + 2];
+				path[j+2] = 0;
 			}
-			i = 1;
+			i = 0;
 		}
 	}
 }
