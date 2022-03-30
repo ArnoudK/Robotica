@@ -6,6 +6,7 @@
 
 #include "Ticker.h"
 #include <avr/sleep.h>
+#include <EEPROM.h>
 
 void objectDetectie();
 Ticker ultrasoonCheckup(objectDetectie, 100);
@@ -38,26 +39,26 @@ byte path[50] = {};
 
 /*----LETTERS FOR SGDP--- */
 const byte digitData[15][7]{
-  {0, 1, 1, 1, 1, 1, 1},
-  {0, 0, 0, 0, 1, 1, 0},
-  {1, 0, 1, 1, 0, 1, 1},
-  {1, 0, 0, 1, 1, 1, 1},
-  {1, 1, 0, 0, 1, 1, 0},
-  {1, 1, 0, 1, 1, 0, 1},
-  {1, 1, 1, 1, 1, 0, 1},
-  {0, 0, 0, 0, 1, 1, 1},
-  {1, 1, 1, 1, 1, 1, 1},
-  {1, 1, 0, 1, 1, 1, 1},
-  // LETTER L
-  {0, 1, 1, 1, 0, 0, 0},
-  // LETTER R
-  {1, 1, 1, 0, 1, 1, 1},
-  // LETTER F
-  {1, 1, 1, 0, 0, 0, 1},
-  // LETTER I
-  {0, 1, 1, 0, 0, 0, 0},
-  // NIKS
-  {0, 0, 0, 0, 0, 0, 0} };
+	{0, 1, 1, 1, 1, 1, 1},
+	{0, 0, 0, 0, 1, 1, 0},
+	{1, 0, 1, 1, 0, 1, 1},
+	{1, 0, 0, 1, 1, 1, 1},
+	{1, 1, 0, 0, 1, 1, 0},
+	{1, 1, 0, 1, 1, 0, 1},
+	{1, 1, 1, 1, 1, 0, 1},
+	{0, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 0, 1, 1, 1, 1},
+	// LETTER L
+	{0, 1, 1, 1, 0, 0, 0},
+	// LETTER R
+	{1, 1, 1, 0, 1, 1, 1},
+	// LETTER F
+	{1, 1, 1, 0, 0, 0, 1},
+	// LETTER I
+	{0, 1, 1, 0, 0, 0, 0},
+	// NIKS
+	{0, 0, 0, 0, 0, 0, 0}};
 
 /*  -----------------------------
   INFRARED SENSOR
@@ -74,7 +75,7 @@ bool outerleft, innerleft, middle, innerright, outerright;
 /*   ----------------
 *   MOTER LEFT
   _________________*/
-  // PWM moter left E2
+// PWM moter left E2
 constexpr auto MOTER_LEFT_PWM = 6;
 // moter direction (on forward) M2
 constexpr auto MOTER_LEFT_DIRECTION = 7;
@@ -86,7 +87,7 @@ unsigned moter_left_speed = 0;
 /*  -----------------------------
 *   MOTER RIGHT
   -----------------------------*/
-  // E1
+// E1
 constexpr auto MOTER_RIGHT_PWM = 5;
 // m1
 constexpr auto MOTER_RIGHT_DIRECTION = 4;
@@ -128,8 +129,6 @@ long timeSinceLastStateChange;
 byte lastTurn;
 bool redirectedLastTime = false;
 
-
-
 byte state;
 byte ledTimer = 0;
 
@@ -141,9 +140,9 @@ bool juncPoss[3] = {};
 -------------------*/
 constexpr auto DELAYBACKWARDS = /*350*/ -300;
 constexpr auto DELAYFORWARDS = /*250*/ 400;
-constexpr int DEFSPEED = 240;  // 66; //240
+constexpr int DEFSPEED = 240;	 // 66; //240
 constexpr int FASTERSPEED = 255; // 72; //255
-constexpr int LOWSPEED = 100;  // 100
+constexpr int LOWSPEED = 100;	 // 100
 constexpr auto MINTURNTIME = 660;
 
 // the setup function runs once when you press reset or power the board
@@ -155,6 +154,7 @@ void setup()
 	motorPowerUpdate.start();
 	updateDisplayLEDS.start();
 	// robotStopper.start();
+
 
 	pinMode(MOTER_LEFT_PWM, OUTPUT);
 	pinMode(MOTER_LEFT_DIRECTION, OUTPUT);
@@ -181,6 +181,13 @@ void setup()
 
 	state = FORWARD;
 	delay(302);
+		for (int i = 0; i < 50 ; i++)
+	{
+		byte p = EEPROM.read(i);
+		path[i] = p;
+	}
+	showPath();
+	delay(300);
 }
 
 /*-------------UPDATE SENSORS------------*/
@@ -199,7 +206,6 @@ void objectDetectie()
 	duration = pulseIn(ECHO_PIN, HIGH);
 	// distance = duration * 0.034 / 2; // Speed of sound wave divided by 2 (go and back)
 	distance = duration * 0.017f;
-
 }
 
 // update road dection
@@ -218,7 +224,7 @@ void setMotorPower()
 	// set moter power;
 	digitalWrite(MOTER_LEFT_DIRECTION, !leftForward);
 	digitalWrite(MOTER_RIGHT_DIRECTION, rightForward);
-	analogWrite(MOTER_LEFT_PWM, moter_left_speed);       // PWM Speed Control
+	analogWrite(MOTER_LEFT_PWM, moter_left_speed);			 // PWM Speed Control
 	analogWrite(MOTER_RIGHT_PWM, moter_right_speed * 0.96f); // PWM Speed Control
 }
 
@@ -233,12 +239,12 @@ void displayLEDS()
 	{
 		int toDisplay = STATEtoDisplay(path[encouter_count - 1]);
 		display(1, 0, toDisplay);
-
 	}
 }
 
 void loop()
 {
+
 	updateDisplayLEDS.update();
 
 	ultrasoonCheckup.update();
@@ -349,6 +355,18 @@ void loop()
 					return;
 				}
 			}
+			else if (path[encouter_count] == LEFT || path[encouter_count]== RIGHT || path[encouter_count]==FORWARD)
+			{
+				// while(true){
+				// 	display(1,0,3);
+				// 	delay(7);
+				// 	display(0,1,3);
+				// 	delay(7);
+				// }
+				state = path[encouter_count];
+				encouter_count++;
+				break;
+			}
 			else if (juncPoss[0])
 			{
 				state = LEFT;
@@ -397,15 +415,15 @@ void loop()
 	// the loop function runs over and over again until power down or reset
 }
 
+// char saveTurnAround() {
+//  encouter_count--;
+//  path[encouter_count] = UNKOWN;
+//  redirectedLastTime = true;
+//  return UNKOWN;
+// }
 
-//char saveTurnAround() {
-//	encouter_count--;
-//	path[encouter_count] = UNKOWN;
-//	redirectedLastTime = true;
-//	return UNKOWN;
-//}
-
-void saveTurnAround() {
+void saveTurnAround()
+{
 	save_route(TURNAROUND);
 }
 
@@ -429,34 +447,44 @@ int STATEtoDisplay(byte state)
 	}
 }
 
-void save_route(byte direction) {
+void save_route(byte direction)
+{
 	path[encouter_count] = direction;
 	encouter_count++;
 }
 
-void optimizeRoute() {
-	for (int i = 1; i < 50 && path[i] != UNKOWN; i++) {
-		if (path[i] == TURNAROUND) {
+void optimizeRoute()
+{
+	for (int i = 1; i < 50 && path[i] != UNKOWN; i++)
+	{
+		if (path[i] == TURNAROUND)
+		{
 			byte before = path[i - 1];
 			byte after = path[i + 1];
-			byte result =0;
-			switch (before) {
+			byte result = 0;
+			switch (before)
+			{
 			case LEFT:
-				if (after == LEFT) {
+				if (after == LEFT)
+				{
 					result = FORWARD;
 				}
-				else if (after == FORWARD) {
+				else if (after == FORWARD)
+				{
 					result = RIGHT;
 				}
-				else if (after == RIGHT) {
+				else if (after == RIGHT)
+				{
 					result = TURNAROUND;
 				}
 				break;
 			case FORWARD:
-				if (after == LEFT) {
+				if (after == LEFT)
+				{
 					result = RIGHT;
 				}
-				else if (after == FORWARD) {
+				else if (after == FORWARD)
+				{
 					result = TURNAROUND;
 				}
 				break;
@@ -464,71 +492,67 @@ void optimizeRoute() {
 				result = TURNAROUND;
 				break;
 			default:
-				while (true)(display(1, 0, 3));
+				while (true)
+					(display(1, 0, 3));
 				break;
 			}
 			path[i - 1] = result;
-			for (int j = i; j < 48; j++) {
+			for (int j = i; j < 48; j++)
+			{
 				path[j] = path[j + 2];
-				path[j+2] = 0;
+				path[j + 2] = 0;
 			}
 			i = 0;
 		}
 	}
 }
 
-
 //
-//void save_route(byte direction)
+// void save_route(byte direction)
 //{
-//	if (redirectedLastTime) {
-//		if (juncPoss[0] + juncPoss[1] + juncPoss[2] == 1) {
-//			//op letten
-//			//encouter_count--;
-//			saveTurnAround();
-//			return;
-//		}
-//		switch (path[encouter_count])
-//		{
-//		case LEFT:
-//			direction = direction == LEFT ? FORWARD : direction == FORWARD ? RIGHT : UNKOWN;
-//			break;
-//		case FORWARD:
-//			direction = direction == LEFT ? RIGHT : direction == FORWARD ? UNKOWN : LEFT;
+//  if (redirectedLastTime) {
+//    if (juncPoss[0] + juncPoss[1] + juncPoss[2] == 1) {
+//      //op letten
+//      //encouter_count--;
+//      saveTurnAround();
+//      return;
+//    }
+//    switch (path[encouter_count])
+//    {
+//    case LEFT:
+//      direction = direction == LEFT ? FORWARD : direction == FORWARD ? RIGHT : UNKOWN;
+//      break;
+//    case FORWARD:
+//      direction = direction == LEFT ? RIGHT : direction == FORWARD ? UNKOWN : LEFT;
 //
-//		case RIGHT:
-//			//IF WE TURN AROUND WE NEED TO DO MORE STUFF
-//			direction == UNKOWN;
-//			//saveTurnAround();
-//			return;
-//		default:
-//			direction = path[encouter_count - 1];
-//			break;
-//		}
-//	}
-//	if (direction == UNKOWN) {
-//		return;
-//	}
-//	timeSinceLastStateChange = millis();
-//	lastTurn = direction;
-//	path[encouter_count] = direction;
+//    case RIGHT:
+//      //IF WE TURN AROUND WE NEED TO DO MORE STUFF
+//      direction == UNKOWN;
+//      //saveTurnAround();
+//      return;
+//    default:
+//      direction = path[encouter_count - 1];
+//      break;
+//    }
+//  }
+//  if (direction == UNKOWN) {
+//    return;
+//  }
+//  timeSinceLastStateChange = millis();
+//  lastTurn = direction;
+//  path[encouter_count] = direction;
 //
-//	redirectedLastTime = false;
-//	encouter_count++;
+//  redirectedLastTime = false;
+//  encouter_count++;
 //
 //
 //}
 
-
-
-
-
-
 void finish()
 {
-	analogWrite(MOTER_LEFT_PWM, 0);  // PWM Speed Control
+	analogWrite(MOTER_LEFT_PWM, 0);	 // PWM Speed Control
 	analogWrite(MOTER_RIGHT_PWM, 0); // PWM Speed Control
-	//save_route(FINISHED);
+	// save_route(FINISHED);
 	updateDisplayLEDS.stop();
 	showPath();
 
@@ -551,16 +575,21 @@ void display(int toDisplay, int displayOff, int num)
 void showPath()
 {
 	optimizeRoute();
+	for (int i = 0; i < 50; i++)
+	{
+		EEPROM.write(i, path[i]);
+	}
 	// count down from 10
 	for (int i = 9; i >= 0; i--)
 	{
 		display(0, 1, i);
-		delay(1000);
+		delay(100);
 	}
 	// show path;
-	//int count = 0;
+	// int count = 0;
 	for (int count = 0; count < 50 && path[count] != UNKOWN; count++)
 	{
+
 		byte toDisplay = STATEtoDisplay(path[count]);
 
 		// display(0, 1, toDisplay);
@@ -577,12 +606,13 @@ void showPath()
 		display(1, 0, 14);
 		delay(500);
 	}
-	while (true) {
+			long timer = millis();
+
+	while (millis()-timer <2000)
+	{
 		display(1, 0, 12);
 		delay(7);
 		display(0, 1, 13);
 		delay(7);
-
-
 	}
 }
